@@ -27,6 +27,6 @@ async def create_reservation(payload: ReservationCreate,credentials: HTTPAuthori
     
     #Call CRUD
     user = await ReservationRepository.create_reservation(vendorId, payload)
- 
+    print(user)
     
     return user

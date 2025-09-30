@@ -28,10 +28,11 @@ class ReservationRepository:
             )
 
         # Convert MongoDB _id to string
+        print("result",result)
         return ReservationResponse(
-            id=str(result["_id"]),
-            product=result.get("product", ""),
-            detail=result.get("detail", ""),
-            vendorId=result.get("vendorId", ""),
-            vendorReservationStatus=result.get("vendorReservationStatus", ""),
+            id=str(result.inserted_id),
+            product=doc["product"],
+            detail=doc["detail"],
+            vendorId=doc["vendorId"],
+            vendorReservationStatus=doc["vendorReservationStatus"],
         )
