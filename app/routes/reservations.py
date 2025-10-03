@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from core.auth import verify_token
+from core.auth import get_user_from_token, verify_token
 from schemas.reservations import ReservationResponse,ReservationCreate
 from crud.reservations import ReservationRepository
  
@@ -35,3 +35,10 @@ async def create_reservation(payload: ReservationCreate,credentials: HTTPAuthori
 async def get_reservations_by_vendor(vendorID: str,credentials: HTTPAuthorizationCredentials = Depends(security)):
     venderReservations = await ReservationRepository.get_reservations_by_vendor(vendorID)    
     return venderReservations
+
+@router.get("/{ReservationID}")
+async def get_reservation_by_id(ReservationID: str):
+    #userInfo = await get_user_from_token(credentials.credentials)
+    #print("Hello",userInfo)
+    reservation = await ReservationRepository.get_reservation_by_id(ReservationID, "organizer")    
+    return reservation

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
@@ -36,4 +36,17 @@ class ReservationVenderResponse(BaseModel):
     log: Optional[LogInfo] = None
     #createdTime: str  # You can use datetime
     #updatedTime: str  # You can use datetime
- 
+
+class SlipImage(BaseModel):
+    url: str
+    description: Optional[str] = None
+
+class ReservationInfo(BaseModel):
+    vendorName: str
+    vendorReservationStatus: str
+    marketID: str
+    # reservationTime: str # To Add Later
+    reservationProduct: str
+    reservationDetail: str
+    Log: Optional[List[LogInfo]]
+    # Slip: List[SlipImage] # To Add Later

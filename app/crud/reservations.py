@@ -2,7 +2,7 @@ from typing import Optional, List
 
 from fastapi import HTTPException,status
 from db.mongo import get_database
-from schemas.reservations import ReservationCreate, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo
+from schemas.reservations import ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo
 from core.config import settings
 from bson import ObjectId
 
@@ -81,6 +81,55 @@ class ReservationRepository:
                 ))
 
             return reservations
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database query failed: {str(e)}"
+            )
+    
+    @staticmethod
+    async def get_reservation_by_id(reservation_id: str, role: str) -> Optional[ReservationInfo]:
+        try:
+            doc = await ReservationRepository._collection().find_one({"_id": ObjectId(reservation_id)})
+            if not doc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Reservation not found"
+                )
+            
+            # Fetch market details
+            market = await ReservationRepository._market_collection().find_one({"_id": ObjectId(doc["marketId"])})
+            if not market:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Market not found"
+                )
+            
+            # Fetch logs related to this reservation
+            logs = []
+            if role == "organizer":
+                logs = market.get("logs", [])
+            else:
+                for log in market.get("logs", []):
+                    if log.get("reservation_id") == reservation_id:
+                        logs.append(LogInfo(
+                            name=log.get("name", ""),
+                            size=log.get("size", ""),
+                            price=log.get("price", 0),
+                            user_id=log.get("user_id", ""),
+                            reservation_id=log.get("reservation_id", "")
+                        ))
+
+            return ReservationInfo(
+                vendorName=doc.get("vendorName", "TO ASK"),
+                vendorReservationStatus=doc.get("vendorReservationStatus", ""),
+                marketID=doc.get("marketId", ""),
+                reservationProduct=doc.get("product", ""),
+                reservationDetail=doc.get("detail", ""),
+                Log=logs
+            )
+        except HTTPException as he:
+            raise he
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
