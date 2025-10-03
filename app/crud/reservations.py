@@ -2,13 +2,16 @@ from typing import Optional, List
 
 from fastapi import HTTPException,status
 from db.mongo import get_database
-from schemas.reservations import ReservationCreate, ReservationResponse
+from schemas.reservations import ReservationCreate, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo
 from core.config import settings
+from bson import ObjectId
 
 class ReservationRepository:
     @staticmethod
     def _collection():
         return get_database()[settings.MONGO_DB]
+    def _market_collection():
+        return get_database()[settings.MONGO_DB_MARKET]
 
     @staticmethod
     async def create_reservation(vendor_id: str, data: ReservationCreate) -> ReservationResponse:
@@ -36,3 +39,50 @@ class ReservationRepository:
             vendorId=doc["vendorId"],
             vendorReservationStatus=doc["vendorReservationStatus"],
         )
+    
+    @staticmethod
+    async def get_reservations_by_vendor(vendor_id: str) -> List[ReservationVenderResponse]:
+        try:
+            cursor = ReservationRepository._collection().find({"vendorId": vendor_id})
+            reservations = []
+            async for doc in cursor:
+                markets = await ReservationRepository._market_collection().find_one({"_id": ObjectId(doc["marketId"])})
+                # if market not found, skip this reservation
+                if not markets:
+                    continue
+                
+                # if Log
+                logs = markets.get("logs", [])
+                venderlog = None
+                if logs:
+                    for log in logs:
+                        if log.get("user_id") == vendor_id and log.get("reservation_id") == str(doc.get("_id", "")):
+                            venderlog = LogInfo(
+                                name=log.get("name", ""),
+                                size=log.get("size", ""),
+                                price=log.get("price", 0),
+                                user_id=log.get("user_id", ""),
+                                reservation_id=log.get("reservation_id", "")
+                            )
+                            break
+
+
+                reservations.append(ReservationVenderResponse(
+                    id=str(doc.get("_id", "")),
+                    vendorId=doc.get("vendorId", ""),
+                    vendorReservationStatus=doc.get("vendorReservationStatus", ""),
+                    product=doc.get("product", ""),
+                    markets=MarketInfo(
+                        market_name=markets.get("market_name", ""),
+                        isOpen=markets.get("isOpen", ""),
+                        marketType=markets.get("marketType", "")
+                    ),
+                    log = venderlog
+                ))
+
+            return reservations
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database query failed: {str(e)}"
+            )

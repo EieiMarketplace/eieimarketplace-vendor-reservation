@@ -30,3 +30,8 @@ async def create_reservation(payload: ReservationCreate,credentials: HTTPAuthori
     print(user)
     
     return user
+
+@router.get("/vendor/{vendorID}")
+async def get_reservations_by_vendor(vendorID: str,credentials: HTTPAuthorizationCredentials = Depends(security)):
+    venderReservations = await ReservationRepository.get_reservations_by_vendor(vendorID)    
+    return venderReservations

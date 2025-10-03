@@ -14,4 +14,26 @@ class ReservationResponse(BaseModel):
     detail:str
     vendorId: str
     vendorReservationStatus:str
+
+class MarketInfo(BaseModel):
+    market_name: str
+    isOpen: bool
+    marketType: str
+
+class LogInfo(BaseModel):
+    name: str
+    size: str
+    price: int
+    user_id: str
+    reservation_id: str
+
+class ReservationVenderResponse(BaseModel):
+    id: str
+    vendorId: str
+    product: str
+    markets: MarketInfo
+    vendorReservationStatus:str
+    log: Optional[LogInfo] = None
+    #createdTime: str  # You can use datetime
+    #updatedTime: str  # You can use datetime
  
