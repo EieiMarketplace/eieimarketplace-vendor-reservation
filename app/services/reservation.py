@@ -27,6 +27,14 @@ class ReservationService:
     async def create_reservation(vendor_id: str, payload: ReservationCreate) -> ReservationResponse:
  
         market_id = payload.marketId
+        
+        if(role!="vendor"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"You action is not permitted",
+            )  
+        
+        
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(f"{settings.MARKET_SERVICE_URL}/{market_id}")
