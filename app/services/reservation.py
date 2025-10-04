@@ -2,6 +2,7 @@
 from typing import Optional
 from fastapi import HTTPException, status
 import httpx
+from schemas.markets import Market, MarketResponse
 from crud.reservations import ReservationRepository
 from schemas.reservations import ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo, UserInfo
 from core.config import settings
@@ -24,11 +25,11 @@ class ReservationService:
 
 
     @staticmethod
-    async def create_reservation(vendor_id: str, payload: ReservationCreate) -> ReservationResponse:
- 
+    async def create_reservation(userInfo: UserInfo, payload: ReservationCreate) -> ReservationResponse:
+        vendor_id= userInfo.user_id
+        role= userInfo.role
         market_id = payload.marketId
-        print("vendorID ",vendor_id)
-        print("Hello World")
+        
         if(role!="vendor"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -38,8 +39,7 @@ class ReservationService:
         
         async with httpx.AsyncClient() as client:
             try:
-                print(f"{settings.MARKET_SERVICE_URL}/{market_id}")
-                response = await client.get(f"{settings.MARKET_SERVICE_URL}/{market_id}")
+                response  = await client.get(f"{settings.MARKET_SERVICE_URL}/{market_id}")
                 print("response ",response)
             except httpx.RequestError as e:
                 raise HTTPException(
@@ -58,6 +58,14 @@ class ReservationService:
                 detail=f"Unexpected response from Market Service: {response.status_code}",
             )
             
+        response_data:Market = response.json()
+        print("res",response_data)
+        if(response_data['isOpen']==False):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"The market with id {market_id} is already close: {response.status_code}",
+            )
+        
         doc = await ReservationRepository.create_reservation(vendor_id, payload)
  
         return ReservationResponse(

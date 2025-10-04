@@ -21,7 +21,7 @@ class ReservationRepository:
             "detail": data.detail,
             "vendorId": vendor_id,
             "marketId":data.marketId,
-            "vendorReservationStatus": data.vendorReservationStatus,
+            "vendorReservationStatus": "APPLICATION",
         }
 
         try:

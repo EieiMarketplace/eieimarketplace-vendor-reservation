@@ -7,7 +7,7 @@ class ReservationCreate(BaseModel):
     detail: Optional[str]= Field(...,max_length=500)
     marketId: str=Field(...,description="marketId must have")
     # vendorId: str = Field(description="vendor reservation must have vendorId") #TODO: Might be use from Bearer Token
-    vendorReservationStatus: str=Field(...,description="vendorReservation status must have") #Id of Vendor Reservation Status
+    # vendorReservationStatus: str=Field(...,description="vendorReservation status must have") #Id of Vendor Reservation Status
 
 class ReservationResponse(BaseModel):
     id:str
