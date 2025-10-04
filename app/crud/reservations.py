@@ -33,13 +33,8 @@ class ReservationRepository:
 
         # Convert MongoDB _id to string
         print("result",result)
-        return ReservationResponse(
-            id=str(result.inserted_id),
-            product=doc["product"],
-            detail=doc["detail"],
-            vendorId=doc["vendorId"],
-            vendorReservationStatus=doc["vendorReservationStatus"],
-        )
+        doc["id"] = str(result.inserted_id)
+        return doc
     
     @staticmethod
     async def get_reservations_by_vendor(vendor_id: str) -> List[ReservationVenderResponse]:
