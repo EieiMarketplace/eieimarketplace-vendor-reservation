@@ -7,3 +7,4 @@ boto3
 pydantic-settings
 python-multipart
 aiohttp
+PyJWT>=2.0.0

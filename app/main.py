@@ -4,10 +4,19 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from routes.reservations import router as reservations_router
 from db.mongo import close_mongo_connection, connect_to_mongo
  
 
-app = FastAPI(title="Eiei Marketplace Reservation Management")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await connect_to_mongo()
+    yield
+    # Shutdown
+    close_mongo_connection()
+    
+app = FastAPI(title="Eiei Marketplace Reservation Management", lifespan=lifespan)
 list = [ 
        
         "http://localhost:3000"
@@ -20,15 +29,10 @@ app.add_middleware(
     allow_headers=["*"],          
 )
  
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    await connect_to_mongo()
-    yield
-    # Shutdown
-    close_mongo_connection()
+ 
 
-# app.include_router(market.router, prefix="/reservations", tags=["Reservations"])
+app.include_router(reservations_router, prefix="/reservations", tags=["Reservations"])
+
 
 async def serve_fastapi():
     config = uvicorn.Config(app, host="0.0.0.0", port=7003)

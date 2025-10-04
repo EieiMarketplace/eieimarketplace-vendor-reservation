@@ -1,27 +1,46 @@
 import asyncio
+import logging
 import motor.motor_asyncio
-from fastapi import FastAPI
 from core.config import settings
 
-mongodb_client = None
+logger = logging.getLogger(__name__)
+
+_mongo_client = None
+_database = None
+
 
 async def connect_to_mongo():
-    global mongodb_client, db
-    mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_URL)
-    # retry until Mongo is ready
+    """Connect to MongoDB with retry logic and store global client & database."""
+    global _mongo_client, _database
+    _mongo_client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_URL)
+
     for attempt in range(10):
         try:
-            await mongodb_client.admin.command("ping")
+            await _mongo_client.admin.command("ping")
+            print("Connected Mongo")
+            logger.info(" Connected to MongoDB on attempt %d", attempt + 1)
             break
-        except Exception:
+        except Exception as e:
+            logger.warning("MongoDB connection failed (attempt %d): %s", attempt + 1, e)
             await asyncio.sleep(1)
-    db = mongodb_client[settings.MONGO_DB]
-    if db == None : print("DB object:", db)
-    else: print("Connected mongo db")
-    return db
-    
+    else:
+        logger.error("Could not connect to MongoDB after 10 attempts.")
+        raise ConnectionError("MongoDB is not available.")
+
+    _database = _mongo_client[settings.MONGO_DB]
+    return _database
+
+
+def get_database():
+    """Return the current database object (connect first if needed)."""
+    if _database is None:
+        raise RuntimeError("Database not initialized. Call connect_to_mongo() first.")
+    return _database
+
 
 def close_mongo_connection():
-    global mongodb_client
-    if mongodb_client:
-        mongodb_client.close()
+    """Close the MongoDB connection pool."""
+    global _mongo_client
+    if _mongo_client:
+        _mongo_client.close()
+        logger.info("MongoDB connection closed.")
