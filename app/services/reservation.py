@@ -2,14 +2,23 @@
 from fastapi import HTTPException, status
 import httpx
 from crud.reservations import ReservationRepository
-from schemas.reservations import ReservationCreate, ReservationResponse
+from schemas.reservations import ReservationCreate, ReservationResponse, UserInfo
 from core.config import settings
 
 class ReservationService:
     @staticmethod
-    async def create_reservation(vendor_id: str, payload: ReservationCreate) -> ReservationResponse:
- 
+    async def create_reservation(userInfo: UserInfo, payload: ReservationCreate) -> ReservationResponse:
+        vendor_id= userInfo.user_id
+        role= userInfo.role
         market_id = payload.marketId
+        
+        if(role!="vendor"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"You action is not permitted",
+            )  
+        
+        
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(f"{settings.MARKET_SERVICE_URL}/{market_id}")
