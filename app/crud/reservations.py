@@ -14,11 +14,12 @@ class ReservationRepository:
         return get_database()[settings.MONGO_DB_MARKET]
 
     @staticmethod
-    async def create_reservation(vendor_id: str, data: ReservationCreate) -> ReservationResponse:
+    async def create_reservation(vendor_id: str, data: ReservationCreate) -> dict:
         doc = {
             "product": data.product,
             "detail": data.detail,
             "vendorId": vendor_id,
+            "marketId":data.marketId,
             "vendorReservationStatus": data.vendorReservationStatus,
         }
 
@@ -32,13 +33,8 @@ class ReservationRepository:
 
         # Convert MongoDB _id to string
         print("result",result)
-        return ReservationResponse(
-            id=str(result.inserted_id),
-            product=doc["product"],
-            detail=doc["detail"],
-            vendorId=doc["vendorId"],
-            vendorReservationStatus=doc["vendorReservationStatus"],
-        )
+        doc["id"] = str(result.inserted_id)
+        return doc
     
     @staticmethod
     async def get_reservations_by_vendor(vendor_id: str) -> List[ReservationVenderResponse]:
@@ -108,7 +104,7 @@ class ReservationRepository:
             
             # Fetch logs related to this reservation
             logs = []
-            if userInfo.role == "organizer":
+            if role == "organizer":
                 logs = market.get("logs", [])
             else:
                 for log in market.get("logs", []):
@@ -122,7 +118,7 @@ class ReservationRepository:
                         ))
 
             return ReservationInfo(
-                vendorName=doc.get("vendorName", ),
+                vendorName=doc.get("vendorName", ""),
                 vendorReservationStatus=doc.get("vendorReservationStatus", ""),
                 marketID=doc.get("marketId", ""),
                 marketInfo = MarketInfo(

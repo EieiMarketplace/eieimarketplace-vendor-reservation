@@ -8,3 +8,12 @@ pydantic-settings
 python-multipart
 aiohttp
 PyJWT>=2.0.0
+sqlalchemy
+psycopg2-binary
+python-jose
+python-multipart
+pydantic[email]
+PyJWT
+pytest
+aiohttp
+httpx
