@@ -14,11 +14,12 @@ class ReservationRepository:
         return get_database()[settings.MONGO_DB_MARKET]
 
     @staticmethod
-    async def create_reservation(vendor_id: str, data: ReservationCreate) -> ReservationResponse:
+    async def create_reservation(vendor_id: str, data: ReservationCreate) -> dict:
         doc = {
             "product": data.product,
             "detail": data.detail,
             "vendorId": vendor_id,
+            "marketId":data.marketId,
             "vendorReservationStatus": data.vendorReservationStatus,
         }
 

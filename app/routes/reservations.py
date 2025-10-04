@@ -3,12 +3,14 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from core.auth import get_user_from_token, verify_token
 from schemas.reservations import ReservationResponse,ReservationCreate
 from crud.reservations import ReservationRepository
+from services.reservation import ReservationService
+ 
  
 router = APIRouter()
 security = HTTPBearer()
 # Get current user info
 @router.post("/reserve", response_model=ReservationResponse)
-async def create_reservation(payload: ReservationCreate,credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def create_reservation(payload: ReservationCreate):
     
     #Get Token
     # token = credentials.credentials
@@ -26,7 +28,7 @@ async def create_reservation(payload: ReservationCreate,credentials: HTTPAuthori
     vendorId ="3"
     
     #Call CRUD
-    user = await ReservationRepository.create_reservation(vendorId, payload)
+    user = await ReservationService.create_reservation(vendorId, payload)
     print(user)
     
     return user

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     MONGO_DB_MARKET: str
     SECRET_KEY:str
     ALGORITHM: str
+    MARKET_SERVICE_URL:str
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
