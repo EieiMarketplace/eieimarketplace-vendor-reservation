@@ -9,6 +9,7 @@ import os
 import aiohttp
 import json
 import asyncio
+from schemas.reservations import UserInfo
 
 security = HTTPBearer()
 
@@ -25,11 +26,13 @@ DEFAULT_DOCKER_SERVICE = "http://user-management:7001"
 # -----------------------------------------------------------------------------
 # Models
 # -----------------------------------------------------------------------------
-@dataclass
-class UserInfo:
-    user_id: str
-    role: str
-    token: str
+# @dataclass
+# class UserInfo:
+#     user_id: str
+#     role: str
+#     token: str
+#     firstName: str
+#     lastName: str
 
 # def get_db():
 #     db = database.SessionLocal()
@@ -109,15 +112,18 @@ async def get_user_from_token(token: str) -> UserInfo:
     print(_candidate_urls("/users/info"))
     for url in _candidate_urls("/users/info"):
         try:
-            print(url)
             status, _text, data = await _request_json("GET", url, headers=headers, timeout_sec=10)
-            print(status, _text, data)
             if status == 200 and isinstance(data, dict):
                 user_id = str(data.get("id", "")).strip()
                 role = str(data.get("role", "")).strip()
                 if not user_id or not role:
                     raise HTTPException(status_code=502, detail="Malformed user info from auth service")
-                return UserInfo(user_id=user_id, role=role, token=token)
+                return UserInfo(
+                    user_id=user_id, 
+                    role=role, 
+                    token=token, 
+                    first_name=data.get("first_name", "NaN"), 
+                    last_name=data.get("last_name", "NaN"))
 
             if status == 401:
                 raise HTTPException(status_code=401, detail="Invalid or expired token")

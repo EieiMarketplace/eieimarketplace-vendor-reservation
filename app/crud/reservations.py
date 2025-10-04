@@ -2,14 +2,14 @@ from typing import Optional, List
 
 from fastapi import HTTPException,status
 from db.mongo import get_database
-from schemas.reservations import ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo
+from schemas.reservations import ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo, UserInfo
 from core.config import settings
 from bson import ObjectId
 
 class ReservationRepository:
     @staticmethod
     def _collection():
-        return get_database()[settings.MONGO_DB]
+        return get_database()[settings.MONGO_DB_RESERVATION]
     def _market_collection():
         return get_database()[settings.MONGO_DB_MARKET]
 
@@ -91,6 +91,7 @@ class ReservationRepository:
     async def get_reservation_by_id(reservation_id: str, role: str) -> Optional[ReservationInfo]:
         try:
             doc = await ReservationRepository._collection().find_one({"_id": ObjectId(reservation_id)})
+            print(ReservationRepository._collection())
             if not doc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -107,7 +108,7 @@ class ReservationRepository:
             
             # Fetch logs related to this reservation
             logs = []
-            if role == "organizer":
+            if userInfo.role == "organizer":
                 logs = market.get("logs", [])
             else:
                 for log in market.get("logs", []):
@@ -121,9 +122,14 @@ class ReservationRepository:
                         ))
 
             return ReservationInfo(
-                vendorName=doc.get("vendorName", "TO ASK"),
+                vendorName=doc.get("vendorName", ),
                 vendorReservationStatus=doc.get("vendorReservationStatus", ""),
                 marketID=doc.get("marketId", ""),
+                marketInfo = MarketInfo(
+                    market_name=market.get("market_name", ""),
+                    isOpen=market.get("isOpen", ""),
+                    marketType=market.get("marketType", "")
+                ),
                 reservationProduct=doc.get("product", ""),
                 reservationDetail=doc.get("detail", ""),
                 Log=logs

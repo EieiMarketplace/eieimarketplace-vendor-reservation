@@ -45,8 +45,17 @@ class ReservationInfo(BaseModel):
     vendorName: str
     vendorReservationStatus: str
     marketID: str
+    marketInfo: MarketInfo
     # reservationTime: str # To Add Later
     reservationProduct: str
     reservationDetail: str
     Log: Optional[List[LogInfo]]
     # Slip: List[SlipImage] # To Add Later
+
+class UserInfo(BaseModel):
+    user_id: str
+    role: str
+    token: str
+    first_name: str
+    last_name: str
+ 

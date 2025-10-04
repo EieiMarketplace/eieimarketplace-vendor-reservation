@@ -1,7 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel, Field
 
-
 class VendorReservationStatus(BaseModel):
     id: str=Field(primary_key=True)
     status: str= Field(max_length=200)
@@ -16,5 +15,3 @@ class VendorReservation(BaseModel):
         "populate_by_name": True,    
         "extra": "ignore"            
     }
-    
- 

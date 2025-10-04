@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     MONGO_URL: str
     MONGO_DB: str
+    MONGO_DB_RESERVATION: str
     MONGO_DB_MARKET: str
     SECRET_KEY:str
     ALGORITHM: str
