@@ -46,6 +46,7 @@ class SlipImage(BaseModel):
 class ReservationInfo(BaseModel):
     vendorName: str
     vendorReservationStatus: str
+    vendorId: str
     marketID: str
     marketInfo: MarketInfo
     # reservationTime: str # To Add Later

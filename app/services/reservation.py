@@ -1,11 +1,28 @@
  
+from typing import Optional
 from fastapi import HTTPException, status
 import httpx
 from crud.reservations import ReservationRepository
-from schemas.reservations import ReservationCreate, ReservationResponse
+from schemas.reservations import ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo, UserInfo
 from core.config import settings
 
 class ReservationService:
+    @staticmethod
+    async def get_reservation(reservationId: str, userInfo: UserInfo) -> Optional[ReservationInfo]:
+        reservation = await ReservationRepository.get_reservation_by_id(reservationId, userInfo.role)
+        vendorId = reservation.vendorId if reservation else ""
+        vendorInfo = await ReservationRepository.get_user_info(vendorId, userInfo.token)
+        
+        if not reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Reservation with id '{reservationId}' not found.",
+            )
+        
+        reservation.vendorName = getattr(vendorInfo, "first_name", "NaN") + " " + getattr(vendorInfo, "last_name", "NaN")
+        return reservation
+
+
     @staticmethod
     async def create_reservation(vendor_id: str, payload: ReservationCreate) -> ReservationResponse:
  
