@@ -5,6 +5,7 @@ from db.mongo import get_database
 from schemas.reservations import ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo, UserInfo
 from core.config import settings
 from bson import ObjectId
+from core.auth import get_user_from_id
 
 class ReservationRepository:
     @staticmethod
@@ -121,6 +122,7 @@ class ReservationRepository:
                 vendorName=doc.get("vendorName", ""),
                 vendorReservationStatus=doc.get("vendorReservationStatus", ""),
                 marketID=doc.get("marketId", ""),
+                vendorId=doc.get("vendorId", ""),
                 marketInfo = MarketInfo(
                     market_name=market.get("market_name", ""),
                     isOpen=market.get("isOpen", ""),
@@ -137,3 +139,8 @@ class ReservationRepository:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database query failed: {str(e)}"
             )
+
+    @staticmethod
+    async def get_user_info(user_id: str, token: str) -> UserInfo:
+        userInfo = await get_user_from_id(user_id, token)
+        return userInfo

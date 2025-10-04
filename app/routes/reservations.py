@@ -26,5 +26,6 @@ async def get_reservations_by_vendor(vendorID: str,credentials: HTTPAuthorizatio
 @router.get("/{ReservationID}")
 async def get_reservation_by_id(ReservationID: str,credentials: HTTPAuthorizationCredentials = Depends(security)):
     userInfo = await get_user_from_token(credentials.credentials)
-    reservation = await ReservationRepository.get_reservation_by_id(ReservationID, userInfo.role)    
+    reservation = await ReservationService.get_reservation(ReservationID, userInfo)
+    #reservation = await ReservationRepository.get_reservation_by_id(ReservationID, userInfo.role)    
     return reservation

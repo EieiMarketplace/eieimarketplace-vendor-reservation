@@ -106,11 +106,9 @@ async def _request_json(
 # -----------------------------------------------------------------------------
 # Auth service calls
 # -----------------------------------------------------------------------------
-async def get_user_from_token(token: str) -> UserInfo:
-    """Resolve user info via GET /users/info with Bearer token."""
+async def fetch_user_info(path: str, token: str) -> UserInfo:
     headers = {"Authorization": f"Bearer {token}"}
-    print(_candidate_urls("/users/info"))
-    for url in _candidate_urls("/users/info"):
+    for url in _candidate_urls(path):
         try:
             status, _text, data = await _request_json("GET", url, headers=headers, timeout_sec=10)
             if status == 200 and isinstance(data, dict):
@@ -141,4 +139,13 @@ async def get_user_from_token(token: str) -> UserInfo:
     if BYPASS_AUTH:
         return UserInfo(user_id="dev-user", role="organizer", token=token)
 
-    raise HTTPException(status_code=503, detail="Authentication service is currently unavailable")
+
+    raise HTTPException(status_code=503, detail="Authentication service is currently unavailable or request user not found")
+
+async def get_user_from_id(id: str, token: str) -> UserInfo:
+    userInfo = await fetch_user_info(f"/users/info/{id}", token)
+    return userInfo
+
+async def get_user_from_token(token: str) -> UserInfo:
+    userInfo = await fetch_user_info("/users/info", token)
+    return userInfo
