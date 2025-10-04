@@ -11,7 +11,7 @@ security = HTTPBearer()
 # Get current user info
 @router.post("/reserve", response_model=ReservationResponse)
 async def create_reservation(payload: ReservationCreate,credentials: HTTPAuthorizationCredentials = Depends(security)):
-    
+    print("Hellow")
     userInfo = await get_user_from_token(credentials.credentials)
  
     #Call CRUD
