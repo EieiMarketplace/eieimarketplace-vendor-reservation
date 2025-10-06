@@ -76,3 +76,15 @@ class ReservationService:
             vendorId=doc["vendorId"],
             vendorReservationStatus=doc["vendorReservationStatus"],
         )
+        
+    @staticmethod
+    async def search_reservation(marketId: str, vendorReservationStatus: str) -> Optional[ReservationInfo]:
+        try:
+            reservations_cursor = await ReservationRepository.search_reservation_by_marketid(
+                market_id=marketId, vendor_reservation_status=vendorReservationStatus
+            )
+            return reservations_cursor
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+        

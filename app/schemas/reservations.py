@@ -1,6 +1,8 @@
 from typing import Optional, List
 from pydantic import BaseModel, Field
+from datetime import time
 
+from  schemas.markets import Log
 
 class ReservationCreate(BaseModel):
     product: str = Field(...,max_length=200, description="product must be 1-200 characters")
@@ -61,4 +63,18 @@ class UserInfo(BaseModel):
     token: str
     first_name: str
     last_name: str
+
  
+ 
+class ReservationByMarketIdResponse(BaseModel): #OrganizerResponse
+    id: str #reservation_id
+    vendorId: str
+    vendorName:str
+    vendorReservationStatus:str
+    log: Log #that have its reservation
+    marketId:str
+    createdTime:time
+    updatedTime:time
+    
+ 
+    

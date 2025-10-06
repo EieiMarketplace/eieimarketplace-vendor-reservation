@@ -144,3 +144,35 @@ class ReservationRepository:
     async def get_user_info(user_id: str, token: str) -> UserInfo:
         userInfo = await get_user_from_id(user_id, token)
         return userInfo
+
+    @staticmethod
+    async def search_reservation_by_marketid(market_id:str,vendor_reservation_status:str)-> ReservationVenderResponse:
+        pipeline = [
+            {
+                "$match": {
+                    "marketId": market_id
+                } if vendor_reservation_status == "" else {
+                    "marketId": market_id,
+                    "vendorReservationStatus": vendor_reservation_status
+                }
+            },
+ 
+            {
+                "$addFields": {
+                    "marketObjId": {"$toObjectId": "$marketId"}
+                }
+            },
+            {
+                "$lookup": {
+                    "from": settings.MONGO_DB_MARKET,
+                    "localField": "marketObjId",
+                    "foreignField": "_id",
+                    "as": "market_info"
+                }
+            },
+            {"$unwind": "$market_info"}
+        ]
+        cursor = ReservationRepository._collection().aggregate(pipeline)
+        print("Cursor ",cursor)
+        reservations = await cursor.to_list(length=None)
+        print("Hello Reservation",reservations)
