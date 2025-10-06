@@ -1,10 +1,12 @@
  
-from typing import Optional
+ 
+from typing import List, Optional
 from fastapi import HTTPException, status
 import httpx
+from dependencies.constant import ALL_STATUS
 from schemas.markets import Market, MarketResponse
 from crud.reservations import ReservationRepository
-from schemas.reservations import ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo, UserInfo
+from schemas.reservations import ReservationByMarketIdResponse, ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo, UserInfo
 from core.config import settings
 
 class ReservationService:
@@ -78,8 +80,45 @@ class ReservationService:
         )
         
     @staticmethod
-    async def search_reservation(marketId: str, vendorReservationStatus: str) -> Optional[ReservationInfo]:
+    async def search_reservation(userInfo: UserInfo,marketId: str, vendorReservationStatus: str) -> List[ReservationByMarketIdResponse]:
+        organizorId=userInfo.user_id
         try:
+            if vendorReservationStatus not in ALL_STATUS:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"There is no {vendorReservationStatus} in System !!",
+            )
+            
+         
+            async with httpx.AsyncClient() as client:
+                try:
+                    response  = await client.get(f"{settings.MARKET_SERVICE_URL}/{marketId}")
+                   
+                except httpx.RequestError as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail=f"Cannot connect to Market Service: {str(e)}",
+                    )
+
+            if response.status_code == 404:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Market with id '{marketId}' not found.",
+                )
+            elif response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Unexpected response from Market Service: {response.status_code}",
+                )
+                
+            response_data:Market = response.json()
+            # print(response_data)
+            # if(response_data['userid']!=organizorId):
+            #     raise HTTPException(
+            #         status_code=status.HTTP_401_UNAUTHORIZED,
+            #         detail=f"You are not owner of this market",
+            #     )    
+                
             reservations_cursor = await ReservationRepository.search_reservation_by_marketid(
                 market_id=marketId, vendor_reservation_status=vendorReservationStatus
             )

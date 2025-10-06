@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from core.auth import get_user_from_token, verify_token
@@ -16,8 +16,8 @@ async def create_reservation(payload: ReservationCreate,credentials: HTTPAuthori
     userInfo = await get_user_from_token(credentials.credentials)
     
     #Call CRUD
-    user = await ReservationService.create_reservation(userInfo, payload)
-    return user
+    reserve = await ReservationService.create_reservation(userInfo, payload)
+    return reserve
 
 @router.get("/vendor/{vendorID}")
 async def get_reservations_by_vendor(vendorID: str,credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -30,9 +30,9 @@ async def get_reservation_by_id(ReservationID: str,credentials: HTTPAuthorizatio
     reservation = await ReservationService.get_reservation(ReservationID, userInfo)
     #reservation = await ReservationRepository.get_reservation_by_id(ReservationID, userInfo.role)    
     return reservation
-@router.get("/market/{marketId}",
-            # response_model=[ReservationByMarketIdResponse]
-   )
-async def get_reservation_by_market_id(marketId:str,vendorReservationStatus: Optional[str] = None ):
-    # userInfo = await get_user_from_token(credentials.credentials)
-    reservation= await ReservationService.search_reservation(marketId,vendorReservationStatus)
+
+@router.get("/market/{marketId}",response_model=List[ReservationByMarketIdResponse])
+async def get_reservation_by_market_id(marketId:str,vendorReservationStatus: Optional[str] = None,credentials: HTTPAuthorizationCredentials = Depends(security) ):
+    userInfo = await get_user_from_token(credentials.credentials)
+    reservation= await ReservationService.search_reservation(userInfo,marketId,vendorReservationStatus)
+    return reservation

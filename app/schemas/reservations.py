@@ -1,3 +1,4 @@
+import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from datetime import time
@@ -71,10 +72,10 @@ class ReservationByMarketIdResponse(BaseModel): #OrganizerResponse
     vendorId: str
     vendorName:str
     vendorReservationStatus:str
-    log: Log #that have its reservation
+    log: Optional[LogInfo] #that have its reservation
     marketId:str
-    createdTime:time
-    updatedTime:time
+    createdTime: datetime.datetime
+    updatedTime: datetime.datetime
     
  
     
