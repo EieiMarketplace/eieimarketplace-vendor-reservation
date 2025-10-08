@@ -230,11 +230,42 @@ class ReservationService:
 
                 updatedMarket=await ReservationService.update_market_logs(market,userInfo.token)
                 print("Updated Market Management  Successfully")
-                response=await ReservationRepository.update_reservation_status(reservationID, "WAITFORPAY")
+                response=await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
                 return response
                 
             elif (changeStatus.vendorReservationPresentStatus=="WAITFORPAY" and changeStatus.vendorReservationNextStatus=="RETIRE"):
                 print("Update Status and delete Log if it send and check that the reservation id is surely correct")
+                
+                if(changeStatus.logName==""):
+                     raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"The log is required",
+                 )
+                     
+                market = await ReservationService.get_market_by_id(changeStatus.marketId)
+
+         
+                found = False
+                for log in market["logs"]:
+                    if log["name"] == changeStatus.logName and log.get("reservationID") == reservationID:
+                        print(f"Found matching log: {log}")
+                        log["userID"] = ""
+                        log["reservationID"] = ""
+                        found = True
+                        break
+
+                if not found:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Cannot find a log in market '{market['marketName']}' with reservationID '{reservationID}'",
+                    )
+                    
+                updatedMarket = await ReservationService.update_market_logs(market, userInfo.token)
+                print("Removed reservation from Market logs successfully")
+
+                response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
+                print("Updated reservation status to RETIRE successfully")
+                return response
             elif (changeStatus.vendorReservationNextStatus=="WAITFORPAT" and changeStatus.vendorReservationNextStatus=="VALIDATESLIP"):
                 print("MAY BE USE ANOTHER SERVICE THAT IMPLEMENT WITH CALL BACK")
             elif (changeStatus.vendorReservationPresentStatus=="VALIDATESLIP" and changeStatus.vendorReservationNextStatus=="MERCHANT"):
