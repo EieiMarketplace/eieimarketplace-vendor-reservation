@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 import httpx
 import json
+ 
 from dependencies.constant import ALL_STATUS
 from schemas.markets import Market, MarketResponse
 from crud.reservations import ReservationRepository
@@ -129,7 +130,7 @@ class ReservationService:
             raise HTTPException(status_code=500, detail=str(e))
     
     @staticmethod
-    async def get_market_by_id(marketId:str)->Market:
+    async def get_market_by_id(marketId:str,organizerId:str)->Market:
         async with httpx.AsyncClient() as client:
             try:
                 response  = await client.get(f"{settings.MARKET_SERVICE_URL}/{marketId}")
@@ -150,6 +151,12 @@ class ReservationService:
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=f"Unexpected response from Market Service: {response.status_code}",
             )
+            
+        # if(response_data['userid']!=organizorId):
+            #     raise HTTPException(
+            #         status_code=status.HTTP_401_UNAUTHORIZED,
+            #         detail=f"You are not owner of this market",
+            #     )    
             
         response_data:Market = response.json()
         return response_data
@@ -188,11 +195,16 @@ class ReservationService:
     @staticmethod
     async def change_reservation_status(reservationID:str,changeStatus:ChangeReservationStatusRequest,userInfo:UserInfo) -> List[ReservationByMarketIdResponse]:
         try:
-            reservation= await ReservationRepository.get_reservation_by_id(reservationID,"organizer")
+            reservation:ReservationInfo = await ReservationRepository.get_reservation_by_id(reservationID,"organizer")
             if not reservation:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Reservation with id '{reservationID}' not found.",
+            )
+            if(reservation.vendorReservationStatus!=changeStatus.vendorReservationPresentStatus):
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Server Error",
             )
                 
             if changeStatus.vendorReservationPresentStatus not in ALL_STATUS or changeStatus.vendorReservationNextStatus not in ALL_STATUS:
@@ -200,7 +212,7 @@ class ReservationService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"There is no present or next status that you provide in System !!",
             )
-               
+     
             #Main Logic    
             if(changeStatus.vendorReservationPresentStatus=="APPLICATION" and changeStatus.vendorReservationNextStatus=="WAITFORPAY"):
                 print("Update Reservation Status and Log for him/her !!")
@@ -210,7 +222,7 @@ class ReservationService:
                     detail=f"The log is required",
                  )
                      
-                market=await ReservationService.get_market_by_id(changeStatus.marketId)
+                market=await ReservationService.get_market_by_id(changeStatus.marketId,userInfo.user_id)
                 
                 found = False
                 for log in market["logs"]:
@@ -242,9 +254,8 @@ class ReservationService:
                     detail=f"The log is required",
                  )
                      
-                market = await ReservationService.get_market_by_id(changeStatus.marketId)
+                market = await ReservationService.get_market_by_id(changeStatus.marketId,userInfo.user_id)
 
-         
                 found = False
                 for log in market["logs"]:
                     if log["name"] == changeStatus.logName and log.get("reservationID") == reservationID:
@@ -266,12 +277,20 @@ class ReservationService:
                 response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
                 print("Updated reservation status to RETIRE successfully")
                 return response
-            elif (changeStatus.vendorReservationNextStatus=="WAITFORPAT" and changeStatus.vendorReservationNextStatus=="VALIDATESLIP"):
+            elif (changeStatus.vendorReservationNextStatus=="WAITFORPAY" and changeStatus.vendorReservationNextStatus=="VALIDATESLIP"):
                 print("MAY BE USE ANOTHER SERVICE THAT IMPLEMENT WITH CALL BACK")
             elif (changeStatus.vendorReservationPresentStatus=="VALIDATESLIP" and changeStatus.vendorReservationNextStatus=="MERCHANT"):
                 print("Update Reservation Status")
+                market=await ReservationService.get_market_by_id(changeStatus.marketId,userInfo.user_id)
+                response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
+                print("Updated reservation status to MERCHANT successfully")
+                return response
             elif (changeStatus.vendorReservationPresentStatus=="MERCHANT" and changeStatus.vendorReservationNextStatus=="WAITFORPAY"):
-                print("UPDATE Reservation Status")
+                print("Update Reservation Status")
+                market=await ReservationService.get_market_by_id(changeStatus.marketId,userInfo.user_id)
+                response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
+                print("Updated reservation status to WAITFORPAY successfully")
+                return response
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
