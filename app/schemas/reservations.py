@@ -67,6 +67,17 @@ class UserInfo(BaseModel):
 
  
  
+class ReservationByMarketIdModelResponse(BaseModel): #OrganizerResponse
+    id: str #reservation_id
+    vendorId: str
+    vendorName:str
+    vendorReservationStatus:str
+    log: Optional[LogInfo] #that have its reservation
+    marketId:str
+    product:str
+    createdTime: datetime.datetime
+    updatedTime: datetime.datetime
+
 class ReservationByMarketIdResponse(BaseModel): #OrganizerResponse
     id: str #reservation_id
     vendorId: str
@@ -74,8 +85,18 @@ class ReservationByMarketIdResponse(BaseModel): #OrganizerResponse
     vendorReservationStatus:str
     log: Optional[LogInfo] #that have its reservation
     marketId:str
+    product:str
     createdTime: datetime.datetime
     updatedTime: datetime.datetime
     
- 
-    
+class ChangeReservationStatusRequest(BaseModel):
+    marketId:str = Field(...,max_length=200, description="marketId required") # ไว้ตรวจ
+    logName:Optional[str]   #ใช้ตอน APPLICATION=>WAITFORPAY และ ต้อง Update Log ของ Market
+    vendorReservationPresentStatus:str = Field(...,max_length=200, description="current status required") #สถานะปัจจุบัน
+    vendorReservationNextStatus:str = Field(...,max_length=200, description="next status required") #สถานะถัดไป 
+    vendorId:str = Field(...,max_length=200, description="vendror Id required") #ใช้ทำอะไรเรา 
+
+class ChangeReservationResponse(BaseModel):
+    message:str
+    status:str
+    reservation_id:str

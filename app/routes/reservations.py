@@ -2,7 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from core.auth import get_user_from_token, verify_token
-from schemas.reservations import ReservationByMarketIdResponse, ReservationResponse,ReservationCreate
+from schemas.reservations import ChangeReservationResponse, ChangeReservationStatusRequest, ReservationByMarketIdResponse, ReservationResponse,ReservationCreate
 from crud.reservations import ReservationRepository
 from services.reservation import ReservationService
  
@@ -36,3 +36,9 @@ async def get_reservation_by_market_id(marketId:str,vendorReservationStatus: Opt
     userInfo = await get_user_from_token(credentials.credentials)
     reservation= await ReservationService.search_reservation(userInfo,marketId,vendorReservationStatus)
     return reservation
+
+@router.patch("/reservation/change-status/{reservationId}",response_model=ChangeReservationResponse )
+async def patch_change_status_reservation(reservationId:str,changeStatus:ChangeReservationStatusRequest,credentials: HTTPAuthorizationCredentials = Depends(security)):
+    userInfo = await get_user_from_token(credentials.credentials)
+    response = await ReservationService.change_reservation_status(reservationID=reservationId,changeStatus=changeStatus,userInfo=userInfo)
+    return response

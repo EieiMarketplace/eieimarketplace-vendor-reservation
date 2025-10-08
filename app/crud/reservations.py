@@ -7,7 +7,7 @@ from dependencies.constant import Status
 from models.reservations import VendorReservation
 from schemas.markets import Log
 from db.mongo import get_database
-from schemas.reservations import ReservationByMarketIdResponse, ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo, UserInfo
+from schemas.reservations import ChangeReservationResponse, ReservationByMarketIdModelResponse, ReservationByMarketIdResponse, ReservationCreate, ReservationInfo, ReservationResponse, ReservationVenderResponse, MarketInfo, LogInfo, UserInfo
 from core.config import settings
 from bson import ObjectId
 from core.auth import get_user_from_id
@@ -153,7 +153,7 @@ class ReservationRepository:
         return userInfo
 
     @staticmethod
-    async def search_reservation_by_marketid(market_id:str,vendor_reservation_status:str)-> List[ReservationByMarketIdResponse]:
+    async def search_reservation_by_marketid(market_id:str,vendor_reservation_status:str)-> List[ReservationByMarketIdModelResponse]:
         pipeline = [
                       {
                 "$match": {
@@ -193,7 +193,8 @@ class ReservationRepository:
                         "$project": {
                             "_id": {"$toString": "$_id"},
                             "vendorId": 1,
-                            "vendorName": 1,
+                            # "vendorName": 1,
+                             "product":1,
                             "vendorReservationStatus": 1,
                             "marketId": 1,
                             "filtered_logs": 1,
@@ -221,10 +222,11 @@ class ReservationRepository:
                             )
 
                         reservations.append(
-                            ReservationByMarketIdResponse(
+                            ReservationByMarketIdModelResponse(
                                 id=doc["_id"],
-                                vendorId=doc.get("vendorId", ""),
-                                vendorName=doc.get("vendorName", ""),
+                                product= doc.get("product", ""),
+                                vendorId= doc.get("vendorId", ""),
+                                vendorName= doc.get("vendorName", ""),
                                 vendorReservationStatus=doc.get("vendorReservationStatus", ""),
                                 log=log_data,
                                 marketId=doc.get("marketId", ""),
@@ -239,3 +241,32 @@ class ReservationRepository:
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                         detail=f"Database aggregation failed: {str(e)}"
                     )
+                    
+    @staticmethod
+    async def update_reservation_status(reservation_id: str, new_status: str)->ChangeReservationResponse:
+        try:
+            result = await ReservationRepository._collection().update_one(
+                {"_id": ObjectId(reservation_id)},
+                {
+                    "$set": {
+                        "vendorReservationStatus": new_status,
+                        "updatedTime": datetime.datetime.now()
+                    }
+                }
+            )
+
+            if result.matched_count == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Reservation ID '{reservation_id}' not found."
+                )
+            response = ChangeReservationResponse(message= "Reservation status updated successfully", status= new_status,reservation_id=reservation_id)
+            return response
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update reservation status: {str(e)}"
+            )
