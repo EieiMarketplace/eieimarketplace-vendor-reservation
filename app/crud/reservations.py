@@ -207,7 +207,7 @@ class ReservationRepository:
         try:
                     cursor = ReservationRepository._collection().aggregate(pipeline)
                     results = await cursor.to_list(length=None)
-                    print("Results ",results)
+                    # print("Results ",results)
                     reservations = []
                     for doc in results:
                         log_data = None

@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     SECRET_KEY:str
     ALGORITHM: str
     MARKET_SERVICE_URL:str
+    RABBITMQ_URL:str
+    USER_QUEUE:str
+    USER_TOPIC1:str
+    USER_STATUS:str
+    USER_EVENT:str
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

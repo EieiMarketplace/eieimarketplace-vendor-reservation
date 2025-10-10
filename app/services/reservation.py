@@ -1,10 +1,13 @@
  
  
+import asyncio
 from typing import List, Optional
+import aio_pika
 from fastapi import HTTPException, status
 import httpx
 import json
  
+from  messaging.rabbitmq import send_request_for_userInfo
 from dependencies.constant import ALL_STATUS
 from schemas.markets import Market, MarketResponse
 from crud.reservations import ReservationRepository
@@ -82,20 +85,19 @@ class ReservationService:
         )
         
     @staticmethod
-    async def search_reservation(userInfo: UserInfo,marketId: str, vendorReservationStatus: str) -> List[ReservationByMarketIdResponse]:
-        organizorId=userInfo.user_id
+    async def search_reservation(userInfo: UserInfo, marketId: str, vendorReservationStatus: str) -> List[ReservationByMarketIdResponse]:
+        organizorId = userInfo.user_id
         try:
             if vendorReservationStatus not in ALL_STATUS:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"There is no {vendorReservationStatus} in System !!",
-            )
+                )
             
-         
+            # Validate market
             async with httpx.AsyncClient() as client:
                 try:
-                    response  = await client.get(f"{settings.MARKET_SERVICE_URL}/{marketId}")
-                   
+                    response = await client.get(f"{settings.MARKET_SERVICE_URL}/{marketId}")
                 except httpx.RequestError as e:
                     raise HTTPException(
                         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -112,54 +114,125 @@ class ReservationService:
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail=f"Unexpected response from Market Service: {response.status_code}",
                 )
-                
-            response_data:Market = response.json()
-            # print(response_data)
-            # if(response_data['userid']!=organizorId):
-            #     raise HTTPException(
-            #         status_code=status.HTTP_401_UNAUTHORIZED,
-            #         detail=f"You are not owner of this market",
-            #     )    
-                
+            
+            # Get reservations
             reservations_cursor = await ReservationRepository.search_reservation_by_marketid(
                 market_id=marketId, vendor_reservation_status=vendorReservationStatus
             )
             
-            return reservations_cursor
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    @staticmethod
-    async def get_market_by_id(marketId:str,organizerId:str)->Market:
-        async with httpx.AsyncClient() as client:
-            try:
-                response  = await client.get(f"{settings.MARKET_SERVICE_URL}/{marketId}")
-                
-            except httpx.RequestError as e:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=f"Cannot connect to Market Service: {str(e)}",
-                )
+            vendor_ids = list(set([r.vendorId for r in reservations_cursor]))  # Remove duplicates
+            
+            if not vendor_ids:
+                return reservations_cursor
 
-        if response.status_code == 404:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Market with id '{marketId}' not found.",
-            )
-        elif response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Unexpected response from Market Service: {response.status_code}",
-            )
+            # Setup RabbitMQ
+            connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
+            try:
+                channel = await connection.channel()
+                exchange = await channel.declare_exchange(
+                    settings.USER_TOPIC1, 
+                    aio_pika.ExchangeType.TOPIC, 
+                    durable=True
+                )
+                
+                # Exclusive queue for responses
+                response_queue = await channel.declare_queue(exclusive=True)
+                await response_queue.bind(exchange, routing_key="user_info.response")
+                
+                # Dictionary to store responses and asyncio.Event for each vendor
+                vendor_data = {v_id: {"name": None, "event": asyncio.Event()} for v_id in vendor_ids}
+                
+                # Background task to consume messages
+                async def consume_responses():
+                    async with response_queue.iterator() as queue_iter:
+                        async for message in queue_iter:
+                            async with message.process():
+                                try:
+                                    data = json.loads(message.body)
+                                    correlation_id = message.correlation_id
+                                    
+                                    # Extract vendor_id from correlation_id
+                                    if correlation_id and correlation_id.startswith("req-"):
+                                        vendor_id = correlation_id[4:]  # Remove "req-" prefix
+                                        
+                                        if vendor_id in vendor_data:
+                                            # Store the name
+                                            vendor_data[vendor_id]["name"] = data.get("first_name", "Unknown")
+                                            # Signal that this vendor's data is ready
+                                            vendor_data[vendor_id]["event"].set()
+                                            print(f"✅ Received data for vendor {vendor_id}: {vendor_data[vendor_id]['name']}")
+                                            
+                                            # Check if all vendors received
+                                            if all(v["event"].is_set() for v in vendor_data.values()):
+                                                break  # Exit consumer loop
+                                except Exception as e:
+                                    print(f"❌ Error processing message: {e}")
+                
+                # Start consumer task
+                consumer_task = asyncio.create_task(consume_responses()) #run the background process wait to read
+                
+                # Send all requests
+                print(f"📤 Sending requests for {len(vendor_ids)} vendors...")
+                for vendor_id in vendor_ids:
+                    correlation_id = f"req-{vendor_id}"
+                    payload = {
+                        "event": "user_info_request", #ไม่ได้ใช้ทำอะไรหรอก5555
+                        "userId": vendor_id,
+                        "token": userInfo.token,
+                    }
+                    
+                    await exchange.publish(
+                        aio_pika.Message(
+                            body=json.dumps(payload).encode(),
+                            correlation_id=correlation_id,
+                            reply_to=response_queue.name
+                        ),
+                        routing_key=settings.USER_STATUS
+                    )
+                
+                print("⏳ Waiting for all responses...")
+                
+                # Wait for all vendors to respond with timeout
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*[v["event"].wait() for v in vendor_data.values()]),
+                        timeout=10.0  # 10 seconds timeout
+                    )
+                    print("✅ All vendor data received!")
+                except asyncio.TimeoutError:
+                    print("⚠️ Timeout waiting for some vendor responses")
+                    # Mark missing vendors as "Unknown"
+                    for vendor_id, data in vendor_data.items():
+                        if not data["event"].is_set():
+                            data["name"] = "Unknown"
+                            print(f"⚠️ No response for vendor {vendor_id}, setting to Unknown")
+                
+                # Cancel consumer task
+                consumer_task.cancel()
+                try:
+                    await consumer_task
+                except asyncio.CancelledError:
+                    pass
+                
+                # Merge vendor names into reservations
+                for reservation in reservations_cursor:
+                    reservation.vendorName = vendor_data.get(
+                        reservation.vendorId, 
+                        {"name": "Unknown"}
+                    )["name"]
+                
+                print(f"✅ Successfully merged {len(vendor_ids)} vendor names")
+                
+            finally:
+                await connection.close()
             
-        # if(response_data['userid']!=organizorId):
-            #     raise HTTPException(
-            #         status_code=status.HTTP_401_UNAUTHORIZED,
-            #         detail=f"You are not owner of this market",
-            #     )    
+            return reservations_cursor
             
-        response_data:Market = response.json()
-        return response_data
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"❌ Unexpected error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
     
     async def update_market_logs(market:Market,token:str):
      

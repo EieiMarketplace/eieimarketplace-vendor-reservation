@@ -100,3 +100,8 @@ class ChangeReservationResponse(BaseModel):
     message:str
     status:str
     reservation_id:str
+    
+class UserInfoMessageRequest(BaseModel):
+    event: str
+    userId: str
+    token: str
