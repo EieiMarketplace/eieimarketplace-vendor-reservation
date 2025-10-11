@@ -1,7 +1,8 @@
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from core.auth import get_user_from_token, verify_token
-from schemas.reservations import ReservationResponse,ReservationCreate
+from schemas.reservations import ChangeReservationResponse, ChangeReservationStatusRequest, ReservationByMarketIdResponse, ReservationResponse,ReservationCreate
 from crud.reservations import ReservationRepository
 from services.reservation import ReservationService
  
@@ -11,12 +12,12 @@ security = HTTPBearer()
 # Get current user info
 @router.post("/reserve", response_model=ReservationResponse)
 async def create_reservation(payload: ReservationCreate,credentials: HTTPAuthorizationCredentials = Depends(security)):
-    
-    userInfo = await get_user_from_token(credentials.credentials)
  
+    userInfo = await get_user_from_token(credentials.credentials)
+    
     #Call CRUD
-    user = await ReservationService.create_reservation(userInfo, payload)
-    return user
+    reserve = await ReservationService.create_reservation(userInfo, payload)
+    return reserve
 
 @router.get("/vendor/{vendorID}")
 async def get_reservations_by_vendor(vendorID: str,credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -29,3 +30,15 @@ async def get_reservation_by_id(ReservationID: str,credentials: HTTPAuthorizatio
     reservation = await ReservationService.get_reservation(ReservationID, userInfo)
     #reservation = await ReservationRepository.get_reservation_by_id(ReservationID, userInfo.role)    
     return reservation
+
+@router.get("/market/{marketId}",response_model=List[ReservationByMarketIdResponse])
+async def get_reservation_by_market_id(marketId:str,vendorReservationStatus: Optional[str] = None,credentials: HTTPAuthorizationCredentials = Depends(security) ):
+    userInfo = await get_user_from_token(credentials.credentials)
+    reservation= await ReservationService.search_reservation(userInfo,marketId,vendorReservationStatus)
+    return reservation
+
+@router.patch("/reservation/change-status/{reservationId}",response_model=ChangeReservationResponse )
+async def patch_change_status_reservation(reservationId:str,changeStatus:ChangeReservationStatusRequest,credentials: HTTPAuthorizationCredentials = Depends(security)):
+    userInfo = await get_user_from_token(credentials.credentials)
+    response = await ReservationService.change_reservation_status(reservationID=reservationId,changeStatus=changeStatus,userInfo=userInfo)
+    return response

@@ -15,3 +15,4 @@ pydantic[email]
 PyJWT
 pytest
 httpx
+aio_pika

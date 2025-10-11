@@ -1,3 +1,5 @@
+from datetime import datetime
+from time import time
 from typing import Optional
 from pydantic import BaseModel, Field
 
@@ -11,6 +13,8 @@ class VendorReservation(BaseModel):
     detail: Optional[str]= Field(max_length=500)
     vendorId: str
     vendorReservationStatus: str=Field() #Id of Vendor Reservation Status
+    createdTime: datetime
+    updatedTime: datetime
     model_config = {
         "populate_by_name": True,    
         "extra": "ignore"            

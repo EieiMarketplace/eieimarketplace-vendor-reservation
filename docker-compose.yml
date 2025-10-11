@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  eieimarketplace-vendor-reservation:
+    container_name: eiei-reservation
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "7003:7003"

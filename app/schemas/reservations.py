@@ -1,13 +1,16 @@
+import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
+from datetime import time
 
+from  schemas.markets import Log
 
 class ReservationCreate(BaseModel):
     product: str = Field(...,max_length=200, description="product must be 1-200 characters")
     detail: Optional[str]= Field(...,max_length=500)
     marketId: str=Field(...,description="marketId must have")
     # vendorId: str = Field(description="vendor reservation must have vendorId") #TODO: Might be use from Bearer Token
-    vendorReservationStatus: str=Field(...,description="vendorReservation status must have") #Id of Vendor Reservation Status
+    # vendorReservationStatus: str=Field(...,description="vendorReservation status must have") #Id of Vendor Reservation Status
 
 class ReservationResponse(BaseModel):
     id:str
@@ -61,4 +64,44 @@ class UserInfo(BaseModel):
     token: str
     first_name: str
     last_name: str
+
  
+ 
+class ReservationByMarketIdModelResponse(BaseModel): #OrganizerResponse
+    id: str #reservation_id
+    vendorId: str
+    vendorName:str
+    vendorReservationStatus:str
+    log: Optional[LogInfo] #that have its reservation
+    marketId:str
+    product:str
+    createdTime: datetime.datetime
+    updatedTime: datetime.datetime
+
+class ReservationByMarketIdResponse(BaseModel): #OrganizerResponse
+    id: str #reservation_id
+    vendorId: str
+    vendorName:str
+    vendorReservationStatus:str
+    log: Optional[LogInfo] #that have its reservation
+    marketId:str
+    product:str
+    createdTime: datetime.datetime
+    updatedTime: datetime.datetime
+    
+class ChangeReservationStatusRequest(BaseModel):
+    marketId:str = Field(...,max_length=200, description="marketId required") # ไว้ตรวจ
+    logName:Optional[str]   #ใช้ตอน APPLICATION=>WAITFORPAY และ ต้อง Update Log ของ Market
+    vendorReservationPresentStatus:str = Field(...,max_length=200, description="current status required") #สถานะปัจจุบัน
+    vendorReservationNextStatus:str = Field(...,max_length=200, description="next status required") #สถานะถัดไป 
+    vendorId:str = Field(...,max_length=200, description="vendror Id required") #ใช้ทำอะไรเรา 
+
+class ChangeReservationResponse(BaseModel):
+    message:str
+    status:str
+    reservation_id:str
+    
+class UserInfoMessageRequest(BaseModel):
+    event: str
+    userId: str
+    token: str
