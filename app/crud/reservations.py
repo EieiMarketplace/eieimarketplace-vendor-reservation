@@ -104,8 +104,10 @@ class ReservationRepository:
                 )
             
             # Fetch logs related to this reservation
+            vendorReservationStatus = doc.get("vendorReservationStatus", "")
+
             logs = []
-            if role == "organizer":
+            if role == "organizer" and vendorReservationStatus == "APPLICATION":
                 logs = market.get("logs", [])
             else:
                 for log in market.get("logs", []):
@@ -120,7 +122,7 @@ class ReservationRepository:
 
             return ReservationInfo(
                 vendorName=doc.get("vendorName", ""),
-                vendorReservationStatus=doc.get("vendorReservationStatus", ""),
+                vendorReservationStatus=vendorReservationStatus,
                 marketID=doc.get("marketId", ""),
                 vendorId=doc.get("vendorId", ""),
                 marketInfo = MarketInfo(
