@@ -14,8 +14,8 @@ from core.config import settings
 from crud.reservations import ReservationRepository
  
 # ---------- RabbitMQ Listener ----------
-RABBITMQ_URL = "amqp://guest:guest@host.docker.internal:5672/" #local run
-# RABBITMQ_URL = "amqp://guest:guest@rabbitmq:5672/"  #docker run
+# RABBITMQ_URL = "amqp://guest:guest@host.docker.internal:5672/" #local run
+RABBITMQ_URL = "amqp://guest:guest@rabbitmq:5672/"  #docker run
 # RABBITMQ_URL = "amqp://guest:guest@localhost:5672/"
 EXCHANGE_NAME = "vendor_reservation"
 QUEUE_NAME = "reservation_status_queue"
