@@ -11,10 +11,8 @@ from  services.reservation import ReservationService
 from routes.reservations import router as reservations_router
 from db.mongo import close_mongo_connection, connect_to_mongo
 from core.config import settings
-
+from crud.reservations import ReservationRepository
  
-
-
 # ---------- RabbitMQ Listener ----------
 #RABBITMQ_URL = "amqp://guest:guest@host.docker.internal:5672/" #local run
 RABBITMQ_URL = "amqp://guest:guest@rabbitmq:5672/"  #docker run
@@ -42,6 +40,9 @@ async def listen_rabbitmq():
                         data = json.loads(message.body)
                         # ReservationService.change_reservation_status(reservationID=data.reservationID,)
                         print(f"📨 Received event: {data}")
+                        if data["event"] == "UPDATE_RESERVATION_STATUS":
+                            response = await ReservationRepository.update_reservation_status(data["reservationId"], "VALIDATESLIP")
+                            print("Updated reservation status to VALIDATESLIP successfully")
 
         except Exception as e:
             print(f"❌ RabbitMQ connection lost or error: {e}")

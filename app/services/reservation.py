@@ -351,7 +351,11 @@ class ReservationService:
                 print("Updated reservation status to RETIRE successfully")
                 return response
             elif (changeStatus.vendorReservationNextStatus=="WAITFORPAY" and changeStatus.vendorReservationNextStatus=="VALIDATESLIP"):
-                print("MAY BE USE ANOTHER SERVICE THAT IMPLEMENT WITH CALL BACK")
+                #print("MAY BE USE ANOTHER SERVICE THAT IMPLEMENT WITH CALL BACK")
+                print("Update Reservation Status to VALIDATESLIP")
+                response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
+                print("Updated reservation status to VALIDATESLIP successfully")
+                return response
             elif (changeStatus.vendorReservationPresentStatus=="VALIDATESLIP" and changeStatus.vendorReservationNextStatus=="MERCHANT"):
                 print("Update Reservation Status")
                 market=await ReservationService.get_market_by_id(changeStatus.marketId,userInfo.user_id)
