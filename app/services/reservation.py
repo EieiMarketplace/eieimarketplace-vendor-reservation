@@ -139,11 +139,12 @@ class ReservationService:
                 response_queue = await channel.declare_queue(exclusive=True)
                 await response_queue.bind(exchange, routing_key="user_info.response")
                 
-                # Dictionary to store responses and asyncio.Event for each vendor
-                vendor_data = {v_id: {"name": None, "event": asyncio.Event()} for v_id in vendor_ids}
+                # Event to wait for response
+                response_received = asyncio.Event()
+                vendor_name_map = {}
                 
-                # Background task to consume messages
-                async def consume_responses():
+                # Background task to consume response
+                async def consume_response():
                     async with response_queue.iterator() as queue_iter:
                         async for message in queue_iter:
                             async with message.process():
@@ -151,61 +152,51 @@ class ReservationService:
                                     data = json.loads(message.body)
                                     correlation_id = message.correlation_id
                                     
-                                    # Extract vendor_id from correlation_id
-                                    if correlation_id and correlation_id.startswith("req-"):
-                                        vendor_id = correlation_id[4:]  # Remove "req-" prefix
+                                    if correlation_id == "batch-user-request":
+                                        # data should be list of {vendorId, first_name}
+                                        user_list = data.get("users", [])
                                         
-                                        if vendor_id in vendor_data:
-                                            # Store the name
-                                            vendor_data[vendor_id]["name"] = data.get("first_name", "Unknown")
-                                            # Signal that this vendor's data is ready
-                                            vendor_data[vendor_id]["event"].set()
-                                            print(f"✅ Received data for vendor {vendor_id}: {vendor_data[vendor_id]['name']}")
-                                            
-                                            # Check if all vendors received
-                                            if all(v["event"].is_set() for v in vendor_data.values()):
-                                                break  # Exit consumer loop
+                                        for user_info in user_list:
+                                            vendor_id = user_info.get("vendorId") or user_info.get("user_id")
+                                            first_name = user_info.get("first_name", "Unknown")
+                                            vendor_name_map[vendor_id] = first_name
+                                        
+                                        print(f"✅ Received {len(user_list)} vendor names")
+                                        response_received.set()
+                                        break
+                                        
                                 except Exception as e:
                                     print(f"❌ Error processing message: {e}")
+                                    response_received.set()  # Set anyway to prevent hanging
                 
                 # Start consumer task
-                consumer_task = asyncio.create_task(consume_responses()) #run the background process wait to read
+                consumer_task = asyncio.create_task(consume_response())
                 
-                # Send all requests
-                print(f"📤 Sending requests for {len(vendor_ids)} vendors...")
-                for vendor_id in vendor_ids:
-                    correlation_id = f"req-{vendor_id}"
-                    payload = {
-                        "event": "user_info_request", #ไม่ได้ใช้ทำอะไรหรอก5555
-                        "userId": vendor_id,
-                        "token": userInfo.token,
-                    }
-                    
-                    await exchange.publish(
-                        aio_pika.Message(
-                            body=json.dumps(payload).encode(),
-                            correlation_id=correlation_id,
-                            reply_to=response_queue.name
-                        ),
-                        routing_key=settings.USER_STATUS
-                    )
+   
+                print(f"📤 Sending batch request for {len(vendor_ids)} vendors...")
+                payload = {
+                    "event": "batch_user_info_request",
+                    "userIds": vendor_ids,
+                    "token": userInfo.token,
+                }
+         
+                await exchange.publish(
+                    aio_pika.Message(
+                        body=json.dumps(payload).encode(),
+                        correlation_id="batch-user-request",
+                        reply_to=response_queue.name
+                    ),
+                    routing_key=settings.USER_STATUS
+                )
                 
-                print("⏳ Waiting for all responses...")
+                print("⏳ Waiting for batch response...")
                 
-                # Wait for all vendors to respond with timeout
-                try:
-                    await asyncio.wait_for(
-                        asyncio.gather(*[v["event"].wait() for v in vendor_data.values()]),
-                        timeout=10.0  # 10 seconds timeout
-                    )
-                    print("✅ All vendor data received!")
-                except asyncio.TimeoutError:
-                    print("⚠️ Timeout waiting for some vendor responses")
-                    # Mark missing vendors as "Unknown"
-                    for vendor_id, data in vendor_data.items():
-                        if not data["event"].is_set():
-                            data["name"] = "Unknown"
-                            print(f"⚠️ No response for vendor {vendor_id}, setting to Unknown")
+                # # Wait for response with timeout
+                # try:
+                #     await asyncio.wait_for(response_received.wait(), timeout=5.0)
+                #     print("✅ Batch response received!")
+                # except asyncio.TimeoutError:
+                #     print("⚠️ Timeout waiting for batch response")
                 
                 # Cancel consumer task
                 consumer_task.cancel()
@@ -216,12 +207,12 @@ class ReservationService:
                 
                 # Merge vendor names into reservations
                 for reservation in reservations_cursor:
-                    reservation.vendorName = vendor_data.get(
-                        reservation.vendorId, 
-                        {"name": "Unknown"}
-                    )["name"]
+                    reservation.vendorName = vendor_name_map.get(
+                        reservation.vendorId,
+                        "Unknown"
+                    )
                 
-                print(f"✅ Successfully merged {len(vendor_ids)} vendor names")
+                print(f"✅ Successfully merged {len(vendor_name_map)} vendor names")
                 
             finally:
                 await connection.close()
@@ -233,37 +224,36 @@ class ReservationService:
         except Exception as e:
             print(f"❌ Unexpected error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+        
     async def update_market_logs(market:Market,token:str):
-     
-        url = f"{settings.MARKET_SERVICE_URL}/{market['id']}"
-        print("moodeng")
-        #  เตรียม multipart form-data
-        form_data = {
-            "marketName": market["marketName"],
-            "address": market["address"],
-            "coverImageKey": market.get("coverImageKey", ""),
-            "logs": json.dumps(market["logs"]),  
-            "marketPlanKeys": json.dumps([key["marketPlanKey"] for key in market.get("marketPlanKeys", [])]),
-            "deletedMarketKeys": json.dumps([]),   
-            "detail": market.get("detail", ""),
-            "rule": market.get("rule", ""),
-            "isOpen": str(market.get("isOpen", True)).lower(),
-            "marketType": market.get("marketType", ""),
-        }
-        headers = {
-            "Authorization": f"Bearer {token}"
-        }
+        
+            url = f"{settings.MARKET_SERVICE_URL}/{market['id']}"
+            #  เตรียม multipart form-data
+            form_data = {
+                "marketName": market["marketName"],
+                "address": market["address"],
+                "coverImageKey": market.get("coverImageKey", ""),
+                "logs": json.dumps(market["logs"]),  
+                "marketPlanKeys": json.dumps([key["marketPlanKey"] for key in market.get("marketPlanKeys", [])]),
+                "deletedMarketKeys": json.dumps([]),   
+                "detail": market.get("detail", ""),
+                "rule": market.get("rule", ""),
+                "isOpen": str(market.get("isOpen", True)).lower(),
+                "marketType": market.get("marketType", ""),
+            }
+            headers = {
+                "Authorization": f"Bearer {token}"
+            }
 
 
 
-        async with httpx.AsyncClient() as client:
-            response = await client.put(url, data=form_data,headers=headers)
+            async with httpx.AsyncClient() as client:
+                response = await client.put(url, data=form_data,headers=headers)
 
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
 
-        return response.json()
+            return response.json()
     
     @staticmethod
     async def change_reservation_status(reservationID:str,changeStatus:ChangeReservationStatusRequest,userInfo:UserInfo) -> List[ReservationByMarketIdResponse]:
