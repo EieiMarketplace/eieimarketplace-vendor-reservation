@@ -437,6 +437,13 @@ class ReservationService:
                 response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
                 print("Updated reservation status to MERCHANT successfully")
                 return response
+            
+            elif changeStatus.vendorReservationPresentStatus == "APPLICATION" and changeStatus.vendorReservationNextStatus == "RETIRE":
+                print("Update Reservation Status")
+                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo.user_id)
+                response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
+                print("Updated reservation status to MERCHANT successfully")
+                return response
                 
             elif changeStatus.vendorReservationPresentStatus == "MERCHANT" and changeStatus.vendorReservationNextStatus == "WAITFORPAY":
                 print("Update Reservation Status")
