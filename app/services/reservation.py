@@ -392,6 +392,12 @@ class ReservationService:
                 response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
                 return response
                 
+            elif changeStatus.vendorReservationPresentStatus == "APPLICATION" and changeStatus.vendorReservationNextStatus == "RETIRE":
+                print("Update Status and delete Log if it send and check that the reservation id is surely correct")
+                response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
+                print("Updated reservation status to RETIRE successfully")
+                return response
+                 
             elif changeStatus.vendorReservationPresentStatus == "WAITFORPAY" and changeStatus.vendorReservationNextStatus == "RETIRE":
                 print("Update Status and delete Log if it send and check that the reservation id is surely correct")
                 
@@ -411,13 +417,13 @@ class ReservationService:
                         log["reservationID"] = ""
                         found = True
                         break
-                print("Test3")            
+           
                 if not found:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"Cannot find a log in market '{market['marketName']}' with reservationID '{reservationID}'",
                     )
-                print("Test4")    
+ 
                 updatedMarket = await ReservationService.update_market_logs(market, userInfo.token)
                 print("Removed reservation from Market logs successfully")
 
