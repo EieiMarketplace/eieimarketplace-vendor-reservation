@@ -14,9 +14,10 @@ from core.config import settings
 from crud.reservations import ReservationRepository
  
 # ---------- RabbitMQ Listener ----------
-# RABBITMQ_URL = "amqp://guest:guest@host.docker.internal:5672/" #local run
-RABBITMQ_URL = "amqp://guest:guest@rabbitmq:5672/"  #docker run
-# RABBITMQ_URL = "amqp://guest:guest@localhost:5672/"
+# RABBITMQ_URL = "amqp://guest:guest@host.docker.internal:5672/"  
+
+# RABBITMQ_URL = "amqp://guest:guest@rabbitmq:5672/"  #docker run
+ 
 EXCHANGE_NAME = "vendor_reservation"
 QUEUE_NAME = "reservation_status_queue"
 ROUTING_KEY = "reservation.status"
@@ -25,7 +26,7 @@ async def listen_rabbitmq():
     while True:
         try:
             print("🔄 Connecting to RabbitMQ...")
-            connection = await aio_pika.connect_robust(RABBITMQ_URL)
+            connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
             channel = await connection.channel()
             exchange = await channel.declare_exchange(EXCHANGE_NAME, aio_pika.ExchangeType.TOPIC, durable=True)
             queueChangeStatus = await channel.declare_queue(QUEUE_NAME, durable=True)

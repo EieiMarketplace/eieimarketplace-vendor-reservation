@@ -1,25 +1,26 @@
 # Dockerfile
 FROM python:3.11-slim
 
-WORKDIR /app
+# Keep image lean and avoid full distro upgrade during build which slows rebuilds
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
 
+# Make Python output unbuffered (easier logs) and avoid writing .pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH="/app:/app/grpc_generated:${PYTHONPATH}"
 
-# install system deps (optional)
-# RUN apt-get update && apt-get install -y --no-install-recommends gcc build-essential && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
+# install Python deps first for better caching
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+WORKDIR /app
 
-COPY app/ ./ 
+# Copy application source
+COPY ./app /app
 
-
-# Expose FastAPI and gRPC ports
+# Expose FastAPI
 EXPOSE 7003
 
-# Start FastAPI + gRPC together
-# CMD ["python", "main.py"]
-CMD ["bash", "-c", "python main.py"]
+# Start FastAPI
+CMD ["python", "main.py"]

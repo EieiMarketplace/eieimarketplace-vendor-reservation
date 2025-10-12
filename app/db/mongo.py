@@ -12,19 +12,21 @@ _database = None
 async def connect_to_mongo():
     """Connect to MongoDB with retry logic and store global client & database."""
     global _mongo_client, _database
-    _mongo_client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_URL)
+    # Set a short serverSelectionTimeoutMS so the driver fails fast inside containers
+    _mongo_client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_URL, serverSelectionTimeoutMS=2000)
 
-    for attempt in range(10):
+    for attempt in range(3):
         try:
             await _mongo_client.admin.command("ping")
             print("Connected Mongo")
-            logger.info(" Connected to MongoDB on attempt %d", attempt + 1)
+            logger.info("Connected to MongoDB on attempt %d", attempt + 1)
             break
         except Exception as e:
             logger.warning("MongoDB connection failed (attempt %d): %s", attempt + 1, e)
+            # shorter backoff to fail fast and let docker-compose show the error
             await asyncio.sleep(1)
     else:
-        logger.error("Could not connect to MongoDB after 10 attempts.")
+        logger.error("Could not connect to MongoDB after %d attempts.", 3)
         raise ConnectionError("MongoDB is not available.")
 
     _database = _mongo_client[settings.MONGO_DB]

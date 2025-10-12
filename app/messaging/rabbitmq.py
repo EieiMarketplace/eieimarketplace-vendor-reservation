@@ -20,12 +20,14 @@ async def get_rabbitmq_connection():
     Get or establish a connection to RabbitMQ
     """
     global _connection
-    if _connection is None or _connection.is_closed:
+    if _connection is None or getattr(_connection, "is_closed", True):
+        # connect_robust will retry internally; give it a short timeout via URL params if supported
         try:
             _connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
             logger.info("Connected to RabbitMQ")
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
+            # re-raise so application startup can decide how to handle (avoid infinite silent loop)
             raise
     return _connection
 

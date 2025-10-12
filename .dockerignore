@@ -3,7 +3,17 @@ __pycache__
 .env
 *.pyo
 *.pyd
+venv/
 .Python
-build
-dist
-.git
+build/
+dist/
+*.egg-info
+*.egg
+node_modules/
+
+# local IDE files
+.vscode/
+.idea/
+
+# logs
+*.log
