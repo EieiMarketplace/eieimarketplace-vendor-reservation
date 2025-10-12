@@ -16,6 +16,38 @@ from core.config import settings
 
 class ReservationService:
     @staticmethod
+    async def get_market_by_id(marketId:str,organizerId:str)->Market:
+        async with httpx.AsyncClient() as client:
+            try:
+                response  = await client.get(f"{settings.MARKET_SERVICE_URL}/{marketId}")
+                
+            except httpx.RequestError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Cannot connect to Market Service: {str(e)}",
+                )
+
+        if response.status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Market with id '{marketId}' not found.",
+            )
+        elif response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Unexpected response from Market Service: {response.status_code}",
+            )
+            
+        # if(response_data['userid']!=organizorId):
+            #     raise HTTPException(
+            #         status_code=status.HTTP_401_UNAUTHORIZED,
+            #         detail=f"You are not owner of this market",
+            #     )    
+            
+        response_data:Market = response.json()
+        return response_data
+
+    @staticmethod
     async def get_reservation(reservationId: str, userInfo: UserInfo) -> Optional[ReservationInfo]:
         reservation = await ReservationRepository.get_reservation_by_id(reservationId, userInfo.role)
         vendorId = reservation.vendorId if reservation else ""
@@ -226,7 +258,7 @@ class ReservationService:
             raise HTTPException(status_code=500, detail=str(e))
         
     async def update_market_logs(market:Market,token:str):
-        
+            print("Test5")
             url = f"{settings.MARKET_SERVICE_URL}/{market['id']}"
             #  เตรียม multipart form-data
             form_data = {
@@ -245,11 +277,11 @@ class ReservationService:
                 "Authorization": f"Bearer {token}"
             }
 
-
-
+            print(url)
             async with httpx.AsyncClient() as client:
                 response = await client.put(url, data=form_data,headers=headers)
 
+            print(response)
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail=response.text)
 
@@ -275,7 +307,7 @@ class ReservationService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"There is no present or next status that you provide in System !!",
             )
-     
+
             #Main Logic    
             if(changeStatus.vendorReservationPresentStatus=="APPLICATION" and changeStatus.vendorReservationNextStatus=="WAITFORPAY"):
                 print("Update Reservation Status and Log for him/her !!")
@@ -316,9 +348,9 @@ class ReservationService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"The log is required",
                  )
-                     
+                print("Test1")
                 market = await ReservationService.get_market_by_id(changeStatus.marketId,userInfo.user_id)
-
+                print("Test2")
                 found = False
                 for log in market["logs"]:
                     if log["name"] == changeStatus.logName and log.get("reservationID") == reservationID:
@@ -327,13 +359,13 @@ class ReservationService:
                         log["reservationID"] = ""
                         found = True
                         break
-
+                print("Test3")            
                 if not found:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"Cannot find a log in market '{market['marketName']}' with reservationID '{reservationID}'",
                     )
-                    
+                print("Test4")    
                 updatedMarket = await ReservationService.update_market_logs(market, userInfo.token)
                 print("Removed reservation from Market logs successfully")
 
