@@ -12,11 +12,11 @@ import asyncio
 from schemas.reservations import UserInfo
 
 security = HTTPBearer()
-
+ 
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
-AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://localhost:7001").rstrip("/")
+AUTH_SERVICE_URL = settings.AUTH_SERVICE_URL
 # Optional internal/Docker DNS (e.g., http://user-management:7001)
 AUTH_SERVICE_INTERNAL_URL = os.getenv("AUTH_SERVICE_INTERNAL_URL", "").rstrip("/")
 BYPASS_AUTH = os.getenv("BYPASS_AUTH", "false").lower() == "true"

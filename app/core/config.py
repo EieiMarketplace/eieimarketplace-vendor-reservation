@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     USER_TOPIC1:str
     USER_STATUS:str
     USER_EVENT:str
+    FRONTEND_URL:str
+    AUTH_SERVICE_URL:str 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
