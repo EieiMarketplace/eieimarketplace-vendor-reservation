@@ -99,7 +99,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(reservations_router, prefix="/reservations", tags=["Reservations"])
+app.include_router(reservations_router, prefix="/api/reservations", tags=["Reservations"])
 
 
 async def serve_fastapi():
