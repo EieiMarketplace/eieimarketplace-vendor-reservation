@@ -42,37 +42,37 @@ async def close_http_session():
         _http_session = None
 
 class ReservationService:
-    @staticmethod
-    async def get_market_by_id(marketId:str,organizerId:str)->Market:
-        async with httpx.AsyncClient() as client:
-            try:
-                response  = await client.get(f"{settings.MARKET_SERVICE_URL}/{marketId}")
+    # @staticmethod
+    # async def get_market_by_id(marketId:str,organizerId:str)->Market:
+    #     async with httpx.AsyncClient() as client:
+    #         try:
+    #             response  = await client.get(f"{settings.MARKET_SERVICE_URL}/{marketId}")
                 
-            except httpx.RequestError as e:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=f"Cannot connect to Market Service: {str(e)}",
-                )
+    #         except httpx.RequestError as e:
+    #             raise HTTPException(
+    #                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    #                 detail=f"Cannot connect to Market Service: {str(e)}",
+    #             )
 
-        if response.status_code == 404:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Market with id '{marketId}' not found.",
-            )
-        elif response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Unexpected response from Market Service: {response.status_code}",
-            )
+    #     if response.status_code == 404:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_404_NOT_FOUND,
+    #             detail=f"Market with id '{marketId}' not found.",
+    #         )
+    #     elif response.status_code != 200:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_502_BAD_GATEWAY,
+    #             detail=f"Unexpected response from Market Service: {response.status_code}",
+    #         )
             
-        # if(response_data['userid']!=organizorId):
-            #     raise HTTPException(
-            #         status_code=status.HTTP_401_UNAUTHORIZED,
-            #         detail=f"You are not owner of this market",
-            #     )    
+    #     # if(response_data['userid']!=organizorId):
+    #         #     raise HTTPException(
+    #         #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         #         detail=f"You are not owner of this market",
+    #         #     )    
             
-        response_data:Market = response.json()
-        return response_data
+    #     response_data:Market = response.json()
+    #     return response_data
 
     @staticmethod
     async def get_reservation(reservationId: str, userInfo: UserInfo) -> Optional[ReservationInfo]:
@@ -316,7 +316,7 @@ class ReservationService:
             raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
 
     @staticmethod
-    async def get_market_by_id(marketId: str, organizerId: str) -> Market:
+    async def get_market_by_id(marketId: str, userInfo: UserInfo) -> Market:
         session = await get_http_session()
         try:
             async with session.get(f"{settings.MARKET_SERVICE_URL}/{marketId}") as response:
@@ -332,6 +332,14 @@ class ReservationService:
                     )
                 
                 response_data: Market = await response.json()
+                print("USER",response_data)
+                print("OLLDD",response_data['userid'])
+                if(userInfo.role=="organizer" and response_data['userid']!=userInfo.user_id):
+                     raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"You don't have permission in this reservation: {response.status}",
+                    )
+                
                 return response_data
                 
         except aiohttp.ClientError as e:
@@ -344,6 +352,15 @@ class ReservationService:
     async def change_reservation_status(reservationID: str, changeStatus: ChangeReservationStatusRequest, userInfo: UserInfo) -> List[ReservationByMarketIdResponse]:
         try:
             reservation: ReservationInfo = await ReservationRepository.get_reservation_by_id(reservationID, "organizer")
+            print("vendordfssssssssssssssssssssssssssssssssssssssssssssssss",reservation.vendorId,userInfo.user_id,userInfo.role,changeStatus)
+            print("User Info",userInfo)
+            if(userInfo.role=="vendor" and reservation.vendorId!=userInfo.user_id):
+                print("THROW")
+                raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"You don't have permission in this reservation: {response.status}",
+            )
+      
             if not reservation:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -354,7 +371,7 @@ class ReservationService:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Server Error",
                 )
-                
+     
             if changeStatus.vendorReservationPresentStatus not in ALL_STATUS or changeStatus.vendorReservationNextStatus not in ALL_STATUS:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -370,7 +387,7 @@ class ReservationService:
                         detail=f"The log is required",
                     )
                      
-                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo.user_id)
+                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo)
                 
                 found = False
                 for log in market["logs"]:
@@ -407,7 +424,7 @@ class ReservationService:
                         detail=f"The log is required",
                     )
                      
-                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo.user_id)
+                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo)
 
                 found = False
                 for log in market["logs"]:
@@ -439,21 +456,21 @@ class ReservationService:
                 
             elif changeStatus.vendorReservationPresentStatus == "VALIDATESLIP" and changeStatus.vendorReservationNextStatus == "MERCHANT":
                 print("Update Reservation Status")
-                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo.user_id)
+                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo)
                 response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
                 print("Updated reservation status to MERCHANT successfully")
                 return response
             
             elif changeStatus.vendorReservationPresentStatus == "APPLICATION" and changeStatus.vendorReservationNextStatus == "RETIRE":
                 print("Update Reservation Status")
-                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo.user_id)
+                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo)
                 response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
                 print("Updated reservation status to MERCHANT successfully")
                 return response
                 
             elif changeStatus.vendorReservationPresentStatus == "MERCHANT" and changeStatus.vendorReservationNextStatus == "WAITFORPAY":
                 print("Update Reservation Status")
-                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo.user_id)
+                market = await ReservationService.get_market_by_id(changeStatus.marketId, userInfo)
                 response = await ReservationRepository.update_reservation_status(reservationID, changeStatus.vendorReservationNextStatus)
                 print("Updated reservation status to WAITFORPAY successfully")
                 return response

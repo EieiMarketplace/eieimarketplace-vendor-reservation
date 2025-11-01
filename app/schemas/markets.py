@@ -17,6 +17,7 @@ class Market(BaseModel):
     detail: Optional[str] = None
     rule: Optional[str] = None
     user_id: Optional[str] = Field(None)
+    userid: Optional[str] = Field(None)
     cover_image_url: Optional[str] = Field(None)
     isOpen: Optional[bool] = None
     marketType: Optional[str] = None
